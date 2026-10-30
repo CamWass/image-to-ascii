@@ -1,7 +1,12 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <inttypes.h>
+
+#include <stddef.h>
 
 #define BUF_SIZE 8
+
+#pragma pack(push, 1)
 
 typedef struct
 {
@@ -27,31 +32,62 @@ typedef struct
     uint32_t biClrImportant;
 } BITMAP_INFO_HEADER;
 
+#pragma pack(pop)
+
 int main(void)
 {
-    unsigned char buf[BUF_SIZE] = {0};
     FILE *fp = fopen("./test_images/letter_m.bmp", "rb");
 
     if (!fp)
     {
         fprintf(stderr, "error: file open failed.\n");
+        fclose(fp);
         return 1;
     }
 
-    size_t bytes_read = fread(buf, sizeof(char), BUF_SIZE, fp);
+    BITMAP_FILE_HEADER fileHeader;
 
-    if (bytes_read < BUF_SIZE)
+    if (fread(&fileHeader, sizeof(BITMAP_FILE_HEADER), 1, fp) != 1)
     {
-        fprintf(stderr, "error: failed to fill buffer from file\n");
+        fprintf(stderr, "error: failed to read bitmap file header\n");
+        fclose(fp);
         return 1;
     }
 
-    for (size_t i = 0; i < BUF_SIZE; i++)
+    // 0x4d42 is the ASCII string "BM".
+    if (fileHeader.bfType != 0x4d42)
     {
-        printf("0x%02x ", buf[i]);
+        fprintf(stderr, "error: invalid BMP file\n");
+        fclose(fp);
+        return 1;
+    }
+
+    BITMAP_INFO_HEADER infoHeader;
+
+    if (fread(&infoHeader, sizeof(BITMAP_INFO_HEADER), 1, fp) != 1)
+    {
+        fprintf(stderr, "error: failed to read bitmap info header\n");
+        fclose(fp);
+        return 1;
+    }
+
+    printf("Width: %" PRId32 "\n", infoHeader.biWidth);
+    printf("Height: %" PRId32 "\n", infoHeader.biHeight);
+
+    if (infoHeader.biBitCount != 24)
+    {
+        fprintf(stderr, "error: unsupported bits per pixel - must be 24\n");
+        fclose(fp);
+        return 1;
+    }
+
+    if (infoHeader.biCompression != 0)
+    {
+        fprintf(stderr, "error: bitmap compression is not supported\n");
+        fclose(fp);
+        return 1;
     }
 
     fclose(fp);
-
     return 0;
 }
