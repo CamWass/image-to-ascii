@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <inttypes.h>
-
-#include <stddef.h>
+#include <stdlib.h>
+#include <stdbool.h>
 
 #define BUF_SIZE 8
 
@@ -31,6 +31,13 @@ typedef struct
     uint32_t biClrUsed;
     uint32_t biClrImportant;
 } BITMAP_INFO_HEADER;
+
+typedef struct
+{
+    unsigned char blue;
+    unsigned char green;
+    unsigned char red;
+} RGB;
 
 #pragma pack(pop)
 
@@ -76,17 +83,109 @@ int main(void)
 
     if (infoHeader.biBitCount != 24)
     {
-        fprintf(stderr, "error: unsupported bits per pixel - must be 24\n");
+        fprintf(stderr, "error: unsupported bits per pixel - must be 24, got %d\n", infoHeader.biBitCount);
         fclose(fp);
         return 1;
     }
 
     if (infoHeader.biCompression != 0)
     {
-        fprintf(stderr, "error: bitmap compression is not supported\n");
+        fprintf(stderr, "error: bitmap compression is not supported: %d\n", infoHeader.biCompression);
         fclose(fp);
         return 1;
     }
+
+    bool is_top_down = infoHeader.biHeight < 0;
+
+    int64_t height = is_top_down
+                         ? -(int64_t)infoHeader.biHeight
+                         : infoHeader.biHeight;
+
+    // +height since we have each row a newline.
+    size_t output_size = infoHeader.biWidth * height + height;
+
+    unsigned char *output = malloc(output_size);
+
+    if (!output)
+    {
+        fprintf(stderr, "error: failed to alloc output buffer\n");
+        fclose(fp);
+        return 1;
+    }
+
+    uint64_t row_size = ((infoHeader.biBitCount * infoHeader.biWidth + 31) / 32) * 4;
+
+    if (is_top_down)
+    {
+        // This branch is untested for now.
+
+        unsigned char *output_pos = output;
+
+        for (u_int64_t y = 0; y < height; y++)
+        {
+            if (fseek(fp, fileHeader.bfOffBits + row_size * y, SEEK_SET) != 0)
+            {
+                fprintf(stderr, "error: failed to seek\n");
+                fclose(fp);
+                return 1;
+            }
+
+            for (size_t x = 0; x < infoHeader.biWidth; x++)
+            {
+                RGB cur;
+
+                if (fread(&cur, sizeof(RGB), 1, fp) != 1)
+                {
+                    fprintf(stderr, "error: failed to read pixel\n");
+                    fclose(fp);
+                    return 1;
+                }
+
+                uint64_t avg = (cur.red + cur.green + cur.blue) / 3;
+
+                *output_pos++ = avg > 127 ? '#' : ' ';
+            }
+        }
+    }
+    else
+    {
+        uint64_t output_row = height - 1;
+
+        for (uint64_t y = 0; y < height; y++)
+        {
+            if (fseek(fp, fileHeader.bfOffBits + row_size * y, SEEK_SET) != 0)
+            {
+                fprintf(stderr, "error: failed to seek\n");
+                fclose(fp);
+                return 1;
+            }
+
+            // +1 for \n at end of row.
+            unsigned char *output_pos = output + (infoHeader.biWidth + 1) * output_row--;
+
+            for (size_t x = 0; x < infoHeader.biWidth; x++)
+            {
+                RGB cur;
+
+                if (fread(&cur, sizeof(RGB), 1, fp) != 1)
+                {
+                    fprintf(stderr, "error: failed to read pixel\n");
+                    fclose(fp);
+                    return 1;
+                }
+
+                uint64_t avg = (cur.red + cur.green + cur.blue) / 3;
+
+                *output_pos++ = avg > 127 ? '#' : '.';
+            }
+
+            *output_pos++ = '\n';
+        }
+    }
+
+    FILE *out_fp = fopen("./out.txt", "wb");
+    fwrite(output, output_size, 1, out_fp);
+    fclose(out_fp);
 
     fclose(fp);
     return 0;
