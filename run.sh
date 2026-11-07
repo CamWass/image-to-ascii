@@ -1,1 +1,1 @@
-./build.sh && ./out/img-to-ascii
+./build.sh && ./out/img-to-ascii && node ./build_html.mjs

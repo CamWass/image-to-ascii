@@ -183,7 +183,7 @@ int main(void)
         }
     }
 
-    FILE *out_fp = fopen("./out.txt", "wb");
+    FILE *out_fp = fopen("./out/out.txt", "wb");
     fwrite(output, output_size, 1, out_fp);
     fclose(out_fp);
 
