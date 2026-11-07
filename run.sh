@@ -1,0 +1,1 @@
+./build.sh && ./out/img-to-ascii
