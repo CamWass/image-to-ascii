@@ -41,6 +41,13 @@ typedef struct
 
 #pragma pack(pop)
 
+int get_char_for_pixel(RGB pixel)
+{
+    uint64_t avg = (pixel.red + pixel.green + pixel.blue) / 3;
+
+    return avg > 127 ? '@' : ' ';
+}
+
 int main(void)
 {
     FILE *fp = fopen("./test_images/letter_m.bmp", "rb");
@@ -141,9 +148,7 @@ int main(void)
                     return 1;
                 }
 
-                uint64_t avg = (cur.red + cur.green + cur.blue) / 3;
-
-                *output_pos++ = avg > 127 ? '#' : ' ';
+                *output_pos++ = get_char_for_pixel(cur);
             }
         }
     }
@@ -174,9 +179,7 @@ int main(void)
                     return 1;
                 }
 
-                uint64_t avg = (cur.red + cur.green + cur.blue) / 3;
-
-                *output_pos++ = avg > 127 ? '#' : '.';
+                *output_pos++ = get_char_for_pixel(cur);
             }
 
             *output_pos++ = '\n';
