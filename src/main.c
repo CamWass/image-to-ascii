@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#define BUF_SIZE 8
+#define NUM_CHARS 8
 
 #pragma pack(push, 1)
 
@@ -41,11 +41,22 @@ typedef struct
 
 #pragma pack(pop)
 
-int get_char_for_pixel(RGB pixel)
+char get_char_for_pixel(RGB pixel)
 {
     uint64_t avg = (pixel.red + pixel.green + pixel.blue) / 3;
 
-    return avg > 127 ? '@' : ' ';
+    unsigned char chars[NUM_CHARS] = {0};
+
+    chars[7] = ' ';
+    chars[6] = '.';
+    chars[5] = ':';
+    chars[4] = '+';
+    chars[3] = '=';
+    chars[2] = '%';
+    chars[1] = '&';
+    chars[0] = '@';
+
+    return chars[(avg / (256 / NUM_CHARS)) % NUM_CHARS];
 }
 
 int main(void)
